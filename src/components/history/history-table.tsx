@@ -61,6 +61,7 @@ export function HistoryTable({ trades }: HistoryTableProps) {
   const [selectedTrade, setSelectedTrade] = useState<TableRow | null>(null);
   const [noteDraft, setNoteDraft] = useState<string>("");
   const [outcomeDraft, setOutcomeDraft] = useState<OutcomeOption>("");
+  const [isEditing, setIsEditing] = useState(false);
   const [mutationState, setMutationState] = useState<
     "idle" | "saving" | "deleting" | "success" | "error"
   >( "idle");
@@ -92,6 +93,7 @@ export function HistoryTable({ trades }: HistoryTableProps) {
     if (selectedTrade) {
       setNoteDraft(selectedTrade.notes ?? "");
       setOutcomeDraft(selectedTrade.exit_outcome ?? "");
+      setIsEditing(false);
       setMutationState("idle");
       setMutationMessage(null);
     }
@@ -289,6 +291,13 @@ export function HistoryTable({ trades }: HistoryTableProps) {
             >
               {t("history.table.modal.close")}
             </button>
+            <button
+              type="button"
+              onClick={() => setIsEditing((prev) => !prev)}
+              className="absolute right-20 top-4 rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300 hover:border-slate-500"
+            >
+              {isEditing ? t("history.table.modal.close") : t("history.table.modal.edit")}
+            </button>
             <h3 className="text-lg font-semibold text-slate-50">
               {t("history.table.modal.summary", {
                 exchange: selectedTrade.exchange.toUpperCase(),
@@ -380,6 +389,7 @@ export function HistoryTable({ trades }: HistoryTableProps) {
                     className="w-full resize-none rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                     value={noteDraft}
                     onChange={(event) => setNoteDraft(event.target.value)}
+                    disabled={!isEditing}
                   />
                 </label>
                 <label className="flex flex-col gap-1 text-xs">
@@ -390,6 +400,7 @@ export function HistoryTable({ trades }: HistoryTableProps) {
                     onChange={(event) =>
                       setOutcomeDraft(event.target.value as OutcomeOption)
                     }
+                    disabled={!isEditing}
                   >
                     <option value="">{t("history.table.modal.outcomeNone")}</option>
                     <option value="take_profit">{t("history.table.modal.outcomeTp")}</option>
@@ -425,7 +436,7 @@ export function HistoryTable({ trades }: HistoryTableProps) {
                 type="button"
                 className="rounded-lg border border-sky-500 bg-sky-500/20 px-4 py-2 text-sm font-semibold text-sky-200 transition hover:bg-sky-500/30 disabled:cursor-not-allowed"
                 onClick={handleSave}
-                disabled={mutationState === "saving"}
+                disabled={mutationState === "saving" || !isEditing}
               >
                 {mutationState === "saving"
                   ? t("history.table.modal.saving")
