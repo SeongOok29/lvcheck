@@ -1,0 +1,9 @@
+{
+  "server": "supabase-mcp",
+  "projectId": "${SUPABASE_PROJECT_REF}",
+  "url": "${NEXT_PUBLIC_SUPABASE_URL}",
+  "anonKey": "${NEXT_PUBLIC_SUPABASE_ANON_KEY}",
+  "serviceRoleKey": "${MCP_SUPABASE_SERVICE_ROLE_KEY}",
+  "accessToken": "${MCP_SUPABASE_ACCESS_TOKEN}",
+  "notes": "Fill the placeholders by exporting the environment variables before starting the MCP server."
+}

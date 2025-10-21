@@ -8,6 +8,7 @@ lvcheck is a serverless Next.js web application that estimates the maximum lever
 - Maximum leverage, max position size, and loss-at-stop calculations using shared math in `src/lib/calculator.ts`.
 - Optional take-profit metrics (R:R, projected PnL, return %) that mirror the selected exposure mode.
 - One-click Binance price fetch for quick entry prefill (Bybit/OKX stubs included for future wiring).
+- Authenticated traders can revisit saved calculations on `/history` with exchange, leverage, and PnL metrics summarised.
 
 ## Quick Start
 ```bash
@@ -15,6 +16,14 @@ npm install
 npm run dev
 ```
 Visit `http://localhost:3000` and fill in the form. Results update in real time; warnings highlight invalid combinations (e.g. stop ≥ entry or risk limits that are too tight).
+
+## Supabase Integration
+1. [Create a Supabase project](https://supabase.com/dashboard) and enable Email OTP authentication.
+2. Copy the project URL and anon key into `.env.local` (see `.env.example`). Restart `npm run dev` so the client picks them up.
+3. Run `supabase/schema.sql` in the Supabase SQL editor (or through migrations) to create the `trade_entries` table and RLS policies.
+4. Add `https://<your-domain>/auth/callback` to **Authentication ▸ URL Configuration ▸ Redirect URLs** so magic links land back in the app.
+
+When authenticated, traders can save the latest calculation to Supabase (`trade_entries` captures raw inputs, derived leverage metrics, and optional notes). Row-Level Security keeps records siloed per user.
 
 ### Key Commands
 - `npm run dev` – local development server with HMR.

@@ -1,37 +1,33 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- Keep application logic under `src/lvcheck/`, grouping subpackages by domain (e.g., `rules/`, `ingest/`, `reports/`).
-- Place integration helpers under `src/lvcheck/adapters/`; keep pure logic separated from IO and external services.
-- Mirror modules in `tests/` using `tests/<module>/test_*.py`; share factories and fixtures from `tests/fixtures/`.
-- Store scripts that glue workflows together in `scripts/`; keep larger design notes in `docs/architecture.md`.
+- The Next.js App Router lives in `src/app/`; keep top-level routes minimal and compose UI from smaller client components.
+- `src/app/history/page.tsx` renders the saved-trade archive; keep data loading on the server and reuse Supabase helpers.
+- Shared logic (math helpers, providers, hooks) belongs in `src/lib/` or `src/components/`; prefer colocating domain-specific helpers near their feature.
+- `public/` serves static assets, while `supabase/` contains SQL migrations/policies. Document deployment quirks in `README.md` rather than ad-hoc notes.
 
 ## Build, Test, and Development Commands
-- `python -m venv .venv && source .venv/bin/activate` — create/enter the standard local environment.
-- `pip install -e .[dev]` — install the package plus dev extras once `pyproject.toml` lists them.
-- `make lint` — run formatters (`black`, `ruff`) and static checks; fix before committing.
-- `make test` — execute the pytest suite with coverage reporting; mirrors CI behavior.
-- `python -m lvcheck.cli` — launch the CLI entry point for quick smoke tests.
+- `npm install` — install dependencies; rerun after updating Supabase SDKs or Tailwind.
+- `npm run dev` — start the local dev server with hot reload.
+- `npm run lint` — run ESLint (includes type-aware rules); fix all errors before committing.
+- `npm run build` — compile and type-check exactly as Vercel preview/production builds do.
 
 ## Coding Style & Naming Conventions
-- Enforce `black` (line length 88) and `ruff`; rely on `make lint` or pre-commit to keep them consistent.
-- Indent with 4 spaces; prefer explicit imports, and sort them via `ruff --fix` or `isort` if configured.
-- Use `snake_case` for modules/functions, `PascalCase` for classes, and `UPPER_SNAKE_CASE` for constants and settings keys.
-- Typing is required on public APIs; add `typing.assert_never` guards for exhaustive matches.
+- Use TypeScript everywhere; export typed helpers from `src/lib/` and avoid `any`.
+- React components and hooks follow `PascalCase` / `useCamelCase`; derived constants remain `camelCase` unless they are env keys (`UPPER_SNAKE_CASE`).
+- Tailwind CSS powers styling: combine utility classes for state/spacing, keep class lists grouped by layout → color → effects for readability.
+- Favor pure functions for calculations (`src/lib/calculator.ts`) and keep side effects inside React components or server actions.
 
 ## Testing Guidelines
-- Tests mirror package paths; each feature gains a `tests/<feature>/test_*.py` file with clear arrange-act-assert sections.
-- Use pytest fixtures in `tests/conftest.py` to centralize setup; keep fixtures small and composable.
-- Cover edge cases (invalid payloads, boundary thresholds, concurrency paths) and document regressions with descriptive test names.
-- Run `pytest --cov=lvcheck --cov-report=term-missing` locally before pushing.
+- Add Vitest + Testing Library under `src/__tests__/` or feature-colocated folders when behaviour hardens.
+- Start by snapshotting calculator edge cases (long/short, margin vs position, invalid inputs) so regression risk stays low as formulas evolve.
+- Gate critical changes with `npm run build` until a dedicated test script exists; integrate into CI once tests land.
 
 ## Commit & Pull Request Guidelines
-- Follow Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`); scope with `/` when touching subpackages.
-- Keep commits focused; explain intent and side effects in the body when behavior or contracts change.
-- Pull requests must include a summary, testing notes, linked issues, and screenshots/logs for anything user-facing.
-- Draft PRs until CI passes; request reviews only when lint/test status is green.
+- Follow Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:`); group cross-cutting updates by feature.
+- PRs must outline intent, testing evidence, Supabase migration references (if any), and screenshots/GIFs for UI changes.
 
-## Security & Configuration Tips
-- Never commit secrets; maintain `.env.example` and load variables via `pydantic` settings or `dotenv` helpers.
-- Validate external input at boundaries and avoid blanket `except Exception` blocks; log context-rich errors.
-- Pin dependencies in `pyproject.toml`, review them with `pip list --outdated`, and remove unused packages promptly.
+## Supabase & Configuration Tips
+- Required env keys: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example`). Never expose the service role key in client bundles.
+- Apply SQL in `supabase/schema.sql` through the dashboard or migrations, and keep Row Level Security enabled.
+- Register redirect URLs such as `https://<domain>/auth/callback` so magic-link auth flows succeed in every environment.

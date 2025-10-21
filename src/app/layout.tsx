@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SupabaseProvider } from "@/components/providers/supabase-provider";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,17 +38,20 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
   return (
     <html lang="ko" className="bg-slate-950">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950`}
-      >
-        {children}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950`}>
+        <SupabaseProvider initialSession={session}>{children}</SupabaseProvider>
       </body>
     </html>
   );

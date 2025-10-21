@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+mcp/*.local.json
 
 # debug
 npm-debug.log*

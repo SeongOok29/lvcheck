@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useSupabase } from "@/components/providers/supabase-provider";
 import {
   calculateMetrics,
   type ExposureMode,
@@ -67,6 +69,18 @@ export default function Home() {
   const [marginInput, setMarginInput] = useState("");
   const [positionInput, setPositionInput] = useState("");
   const [riskInput, setRiskInput] = useState("");
+  const { supabase, session } = useSupabase();
+
+  const [authEmail, setAuthEmail] = useState("");
+  const [authStatus, setAuthStatus] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+
+  const [noteInput, setNoteInput] = useState("");
+  const [saveState, setSaveState] = useState<
+    "idle" | "saving" | "success" | "error" | "unauthenticated"
+  >("idle");
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [priceLoading, setPriceLoading] = useState(false);
   const [priceMessage, setPriceMessage] = useState<string | null>(null);
 
@@ -128,6 +142,120 @@ export default function Home() {
         : "허용 손실 금액 (USD)"
       : "허용 손실 금액 (USD)";
 
+  const userDisplayName =
+    session?.user?.email ??
+    (session?.user?.user_metadata?.name as string | undefined) ??
+    (session?.user?.user_metadata?.full_name as string | undefined) ??
+    undefined;
+
+  const handleSendMagicLink = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!authEmail) {
+      setAuthError("이메일을 입력하세요.");
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthStatus(null);
+    setAuthError(null);
+
+    try {
+      const emailRedirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback?redirect=/`
+          : undefined;
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: authEmail,
+        options: emailRedirectTo
+          ? {
+              emailRedirectTo,
+            }
+          : undefined,
+      });
+
+      if (error) {
+        setAuthError(error.message);
+        return;
+      }
+
+      setAuthStatus("로그인 링크를 전송했습니다. 이메일을 확인하세요.");
+      setAuthEmail("");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setSaveState("idle");
+    setSaveMessage(null);
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setAuthError(error.message);
+    }
+  };
+
+  const handleSaveTrade = async () => {
+    if (!session) {
+      setSaveState("unauthenticated");
+      setSaveMessage("로그인 후 거래 기록을 저장할 수 있습니다.");
+      return;
+    }
+
+    if (!calculation.ready || !entryPrice || !stopPrice) {
+      setSaveState("error");
+      setSaveMessage("유효한 진입가와 손절가를 입력한 뒤 저장하세요.");
+      return;
+    }
+
+    setSaveState("saving");
+    setSaveMessage(null);
+
+    const payload = {
+      user_id: session.user.id,
+      exchange: exchangeId,
+      symbol,
+      direction: calculation.direction ?? (stopPrice < entryPrice ? "Long" : "Short"),
+      entry_price: entryPrice,
+      stop_price: stopPrice,
+      take_profit: takeProfit ?? null,
+      exposure_mode: exposureMode,
+      risk_mode: riskMode,
+      margin_capital: exposureMode === "margin" ? marginCapital ?? null : null,
+      position_size: exposureMode === "position" ? positionSize ?? null : null,
+      risk_value: riskValue ?? null,
+      price_delta: calculation.priceDelta ?? null,
+      price_delta_pct: calculation.priceDeltaPct ?? null,
+      theoretical_max_leverage: calculation.theoreticalMaxLeverage ?? null,
+      max_leverage: calculation.maxLeverage ?? null,
+      max_position_size: calculation.maxPositionSize ?? null,
+      allowed_loss: calculation.allowedLoss ?? null,
+      loss_at_stop: calculation.lossAtStop ?? null,
+      risk_percent_of_capital: calculation.riskPercentOfCapital ?? null,
+      risk_reward_ratio: calculation.riskRewardRatio ?? null,
+      expected_profit: calculation.expectedProfit ?? null,
+      expected_return_pct: calculation.expectedReturnPct ?? null,
+      notes: noteInput.trim() ? noteInput.trim() : null,
+    };
+
+    const { error } = await supabase.from("trade_entries").insert(payload);
+
+    if (error) {
+      setSaveState("error");
+      setSaveMessage(
+        error.message ?? "거래 기록 저장 중 문제가 발생했습니다. 다시 시도하세요.",
+      );
+      return;
+    }
+
+    setSaveState("success");
+    setSaveMessage("거래 기록을 저장했습니다.");
+    setNoteInput("");
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800 bg-slate-900/60 px-6 py-4 backdrop-blur">
@@ -142,6 +270,64 @@ export default function Home() {
             <p className="text-sm text-slate-400">
               진입가, 손절가, 허용 손실만으로 즉시 최대 레버리지를 추산합니다.
             </p>
+          </div>
+          <div className="w-full max-w-sm rounded-xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-200">
+            {session ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-sky-400">
+                    Signed in
+                  </p>
+                  <p className="mt-1 font-medium text-slate-100">
+                    {userDisplayName ?? "사용자"}
+                  </p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Link
+                    href="/history"
+                    className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-slate-100"
+                  >
+                    거래 내역 보기
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-slate-100"
+                  >
+                    로그아웃
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form className="space-y-2" onSubmit={handleSendMagicLink}>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-300">
+                    이메일로 로그인 (Magic Link)
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="trader@example.com"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                    value={authEmail}
+                    onChange={(event) => setAuthEmail(event.target.value)}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="inline-flex w-full items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-slate-100 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-500"
+                >
+                  {authLoading ? "전송 중..." : "로그인 링크 보내기"}
+                </button>
+                {authStatus ? (
+                  <p className="text-xs text-sky-400">{authStatus}</p>
+                ) : null}
+                {authError ? (
+                  <p className="text-xs text-rose-400">{authError}</p>
+                ) : null}
+              </form>
+            )}
           </div>
         </div>
       </header>
@@ -336,6 +522,17 @@ export default function Home() {
                 </label>
               </div>
 
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-slate-300">거래 메모 (선택)</span>
+                <textarea
+                  rows={3}
+                  className="w-full resize-none rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                  value={noteInput}
+                  onChange={(event) => setNoteInput(event.target.value)}
+                  placeholder="전략 요약, 트리거 조건, 체크리스트 등을 기록하세요."
+                />
+              </label>
+
               <div className="flex gap-2 text-xs font-medium text-slate-300">
                 <button
                   type="button"
@@ -440,6 +637,29 @@ export default function Home() {
                     value={`${formatNumber(calculation.expectedReturnPct, 2)}%`}
                   />
                 )}
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveTrade}
+                    className="inline-flex w-full items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-sky-500 hover:text-sky-200 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-500"
+                    disabled={saveState === "saving"}
+                  >
+                    {saveState === "saving" ? "저장 중..." : "거래 기록으로 저장"}
+                  </button>
+                  {saveMessage ? (
+                    <p
+                      className={`mt-2 text-xs ${
+                        saveState === "success"
+                          ? "text-sky-400"
+                          : saveState === "unauthenticated"
+                          ? "text-amber-300"
+                          : "text-rose-400"
+                      }`}
+                    >
+                      {saveMessage}
+                    </p>
+                  ) : null}
+                </div>
               </div>
             </div>
 
