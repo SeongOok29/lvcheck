@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SupabaseProvider } from "@/components/providers/supabase-provider";
+import { LanguageProvider } from "@/i18n/context";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import "./globals.css";
 
@@ -51,7 +52,9 @@ export default async function RootLayout({
   return (
     <html lang="ko" className="bg-slate-950">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950`}>
-        <SupabaseProvider initialSession={session}>{children}</SupabaseProvider>
+        <LanguageProvider>
+          <SupabaseProvider initialSession={session}>{children}</SupabaseProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

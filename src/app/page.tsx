@@ -8,6 +8,8 @@ import {
   type ExposureMode,
   type RiskMode,
 } from "@/lib/calculator";
+import { LanguageToggle } from "@/components/language-toggle";
+import { useTranslations } from "@/i18n/context";
 
 const EXCHANGES: Array<{
   id: string;
@@ -55,6 +57,8 @@ const parseNumeric = (raw: string): number | undefined => {
 
 export default function Home() {
   type ExchangeId = (typeof EXCHANGES)[number]["id"];
+
+  const t = useTranslations();
 
   const [exchangeId, setExchangeId] = useState<ExchangeId>(EXCHANGES[0].id);
   const [symbol, setSymbol] = useState<string>(EXCHANGES[0].symbols[0]);
@@ -138,9 +142,9 @@ export default function Home() {
   const riskLabel =
     exposureMode === "margin"
       ? riskMode === "percent"
-        ? "허용 손실률 (% of 증거금)"
-        : "허용 손실 금액 (USD)"
-      : "허용 손실 금액 (USD)";
+        ? t("inputs.lossPercent")
+        : t("inputs.lossAmount")
+      : t("inputs.lossAmount");
 
   const userDisplayName =
     session?.user?.email ??
@@ -152,7 +156,7 @@ export default function Home() {
     event.preventDefault();
 
     if (!authEmail) {
-      setAuthError("이메일을 입력하세요.");
+      setAuthError(t("auth.errorEmail"));
       return;
     }
 
@@ -180,7 +184,7 @@ export default function Home() {
         return;
       }
 
-      setAuthStatus("로그인 링크를 전송했습니다. 이메일을 확인하세요.");
+      setAuthStatus(t("auth.sent"));
       setAuthEmail("");
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : String(error));
@@ -201,13 +205,13 @@ export default function Home() {
   const handleSaveTrade = async () => {
     if (!session) {
       setSaveState("unauthenticated");
-      setSaveMessage("로그인 후 거래 기록을 저장할 수 있습니다.");
+      setSaveMessage(t("auth.loginRequired"));
       return;
     }
 
     if (!calculation.ready || !entryPrice || !stopPrice) {
       setSaveState("error");
-      setSaveMessage("유효한 진입가와 손절가를 입력한 뒤 저장하세요.");
+      setSaveMessage(t("auth.validInputs"));
       return;
     }
 
@@ -246,89 +250,90 @@ export default function Home() {
 
     if (error) {
       setSaveState("error");
-      setSaveMessage(
-        error.message ?? "거래 기록 저장 중 문제가 발생했습니다. 다시 시도하세요.",
-      );
+      setSaveMessage(error.message ?? t("save.error"));
       return;
     }
 
     setSaveState("success");
-    setSaveMessage("거래 기록을 저장했습니다.");
+    setSaveMessage(t("save.success"));
     setNoteInput("");
   };
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800 bg-slate-900/60 px-6 py-4 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.24em] text-sky-400">
-              lvcheck
+              {t("brand")}
             </p>
             <h1 className="text-2xl font-semibold text-slate-50 sm:text-3xl">
-              최대 레버리지 계산기
+              {t("app.title")}
             </h1>
-            <p className="text-sm text-slate-400">
-              진입가, 손절가, 허용 손실만으로 즉시 최대 레버리지를 추산합니다.
-            </p>
+            <p className="text-sm text-slate-400">{t("app.subtitle")}</p>
           </div>
-          <div className="w-full max-w-sm rounded-xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-200">
-            {session ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-sky-400">
-                    Signed in
-                  </p>
-                  <p className="mt-1 font-medium text-slate-100">
-                    {userDisplayName ?? "사용자"}
-                  </p>
+          <div className="flex w-full max-w-sm flex-col gap-3 text-sm text-slate-200">
+            <div className="flex justify-end">
+              <LanguageToggle />
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+              {session ? (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-sky-400">
+                      {t("auth.signedIn")}
+                    </p>
+                    <p className="mt-1 font-medium text-slate-100">
+                      {userDisplayName ?? t("auth.userPlaceholder")}
+                    </p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Link
+                      href="/history"
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-slate-100"
+                    >
+                      {t("history.link")}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-slate-100"
+                    >
+                      {t("auth.logout")}
+                    </button>
+                  </div>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Link
-                    href="/history"
-                    className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-slate-100"
-                  >
-                    거래 내역 보기
-                  </Link>
+              ) : (
+                <form className="space-y-2" onSubmit={handleSendMagicLink}>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300">
+                      {t("auth.loginHeading")}
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder={t("auth.emailPlaceholder")}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                      value={authEmail}
+                      onChange={(event) => setAuthEmail(event.target.value)}
+                    />
+                  </div>
                   <button
-                    type="button"
-                    onClick={handleSignOut}
-                    className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-slate-100"
+                    type="submit"
+                    disabled={authLoading}
+                    className="inline-flex w-full items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-slate-100 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-500"
                   >
-                    로그아웃
+                    {authLoading ? t("auth.sending") : t("auth.sendLink")}
                   </button>
-                </div>
-              </div>
-            ) : (
-              <form className="space-y-2" onSubmit={handleSendMagicLink}>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">
-                    이메일로 로그인 (Magic Link)
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="trader@example.com"
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-                    value={authEmail}
-                    onChange={(event) => setAuthEmail(event.target.value)}
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={authLoading}
-                  className="inline-flex w-full items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-slate-100 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-500"
-                >
-                  {authLoading ? "전송 중..." : "로그인 링크 보내기"}
-                </button>
-                {authStatus ? (
-                  <p className="text-xs text-sky-400">{authStatus}</p>
-                ) : null}
-                {authError ? (
-                  <p className="text-xs text-rose-400">{authError}</p>
-                ) : null}
-              </form>
-            )}
+                  {authStatus ? (
+                    <p className="text-xs text-sky-400">{authStatus}</p>
+                  ) : null}
+                  {authError ? (
+                    <p className="text-xs text-rose-400">{authError}</p>
+                  ) : null}
+                </form>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -336,10 +341,12 @@ export default function Home() {
         <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="space-y-6 rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-black/20">
             <div>
-              <h2 className="text-lg font-semibold text-slate-100">시장 선택</h2>
+              <h2 className="text-lg font-semibold text-slate-100">
+                {t("inputs.marketSection")}
+              </h2>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-slate-300">거래소</span>
+                  <span className="text-slate-300">{t("inputs.exchange")}</span>
                   <select
                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                     value={exchangeId}
@@ -355,7 +362,7 @@ export default function Home() {
                   </select>
                 </label>
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-slate-300">심볼</span>
+                  <span className="text-slate-300">{t("inputs.symbol")}</span>
                   <select
                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                     value={symbol}
@@ -372,41 +379,43 @@ export default function Home() {
             </div>
 
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold text-slate-100">가격 입력</h2>
+              <h2 className="text-lg font-semibold text-slate-100">
+                {t("inputs.priceSection")}
+              </h2>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-slate-300">진입가 (USD)</span>
+                  <span className="text-slate-300">{t("inputs.entry")}</span>
                   <input
                     type="number"
                     inputMode="decimal"
                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                     value={entryInput}
                     onChange={(event) => setEntryInput(event.target.value)}
-                    placeholder="예: 63250"
+                    placeholder="63250"
                   />
                 </label>
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-slate-300">손절가 (USD)</span>
+                  <span className="text-slate-300">{t("inputs.stop")}</span>
                   <input
                     type="number"
                     inputMode="decimal"
                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                     value={stopInput}
                     onChange={(event) => setStopInput(event.target.value)}
-                    placeholder="예: 61800"
+                    placeholder="61800"
                   />
                 </label>
               </div>
               <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-slate-300">익절가 (선택)</span>
+                  <span className="text-slate-300">{t("inputs.takeProfit")}</span>
                   <input
                     type="number"
                     inputMode="decimal"
                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                     value={takeProfitInput}
                     onChange={(event) => setTakeProfitInput(event.target.value)}
-                    placeholder="예: 67200"
+                    placeholder="67200"
                   />
                 </label>
                 <button
@@ -416,7 +425,7 @@ export default function Home() {
                     if (priceLoading) return;
 
                     if (exchangeId !== "binance") {
-                      setPriceMessage("현재가는 Binance 선물만 지원합니다.");
+                      setPriceMessage(t("auth.priceFetchNote"));
                       return;
                     }
 
@@ -438,9 +447,9 @@ export default function Home() {
                       }
 
                       setEntryInput(data.price);
-                      setPriceMessage("현재가를 불러왔습니다.");
+                      setPriceMessage(t("auth.linkFetched"));
                     } catch (error) {
-                      setPriceMessage("가격을 불러오지 못했습니다. 잠시 후 다시 시도하세요.");
+                      setPriceMessage(t("auth.linkFailed"));
                       console.error(error);
                     } finally {
                       setPriceLoading(false);
@@ -448,7 +457,7 @@ export default function Home() {
                   }}
                   disabled={priceLoading}
                 >
-                  {priceLoading ? "불러오는 중..." : "현재가 불러오기"}
+                  {priceLoading ? t("auth.priceFetching") : t("auth.priceFetchTitle")}
                 </button>
               </div>
               {priceMessage ? (
@@ -457,7 +466,9 @@ export default function Home() {
             </div>
 
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold text-slate-100">리스크 입력</h2>
+              <h2 className="text-lg font-semibold text-slate-100">
+                {t("inputs.riskSection")}
+              </h2>
               <div className="flex gap-2 text-xs font-medium text-slate-300">
                 <button
                   type="button"
@@ -468,7 +479,7 @@ export default function Home() {
                   }`}
                   onClick={() => setExposureMode("margin")}
                 >
-                  증거금 기준
+                  {t("inputs.marginMode")}
                 </button>
                 <button
                   type="button"
@@ -479,33 +490,33 @@ export default function Home() {
                   }`}
                   onClick={() => setExposureMode("position")}
                 >
-                  총 포지션 기준
+                  {t("inputs.positionMode")}
                 </button>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 {exposureMode === "margin" ? (
                   <label className="flex flex-col gap-1 text-sm">
-                    <span className="text-slate-300">증거금 / 자본 (USD)</span>
+                    <span className="text-slate-300">{t("inputs.marginCapital")}</span>
                     <input
                       type="number"
                       inputMode="decimal"
                       className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                       value={marginInput}
                       onChange={(event) => setMarginInput(event.target.value)}
-                      placeholder="예: 5000"
+                      placeholder="5000"
                     />
                   </label>
                 ) : (
                   <label className="flex flex-col gap-1 text-sm">
-                    <span className="text-slate-300">총 포지션 규모 (USD)</span>
+                    <span className="text-slate-300">{t("inputs.positionSize")}</span>
                     <input
                       type="number"
                       inputMode="decimal"
                       className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                       value={positionInput}
                       onChange={(event) => setPositionInput(event.target.value)}
-                      placeholder="예: 25000"
+                      placeholder="25000"
                     />
                   </label>
                 )}
@@ -518,19 +529,19 @@ export default function Home() {
                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                     value={riskInput}
                     onChange={(event) => setRiskInput(event.target.value)}
-                    placeholder={showRiskPercentInput ? "예: 1" : "예: 300"}
+                    placeholder={showRiskPercentInput ? "1" : "300"}
                   />
                 </label>
               </div>
 
               <label className="flex flex-col gap-1 text-sm">
-                <span className="text-slate-300">거래 메모 (선택)</span>
+                <span className="text-slate-300">{t("inputs.tradeNote")}</span>
                 <textarea
                   rows={3}
                   className="w-full resize-none rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                   value={noteInput}
                   onChange={(event) => setNoteInput(event.target.value)}
-                  placeholder="전략 요약, 트리거 조건, 체크리스트 등을 기록하세요."
+                  placeholder={t("inputs.notePlaceholder")}
                 />
               </label>
 
@@ -544,7 +555,7 @@ export default function Home() {
                   }`}
                   onClick={() => setRiskMode("amount")}
                 >
-                  손실 금액
+                  {t("inputs.toggleAmount")}
                 </button>
                 <button
                   type="button"
@@ -561,7 +572,7 @@ export default function Home() {
                     setRiskMode("percent");
                   }}
                 >
-                  손실률 (% of 증거금)
+                  {t("inputs.togglePercent")}
                 </button>
               </div>
             </div>
@@ -569,24 +580,37 @@ export default function Home() {
 
           <div className="flex flex-col gap-6">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-black/20">
-              <h2 className="text-lg font-semibold text-slate-100">결과</h2>
+              <h2 className="text-lg font-semibold text-slate-100">
+                {t("results.section")}
+              </h2>
               <div className="mt-4 grid gap-4">
-                <ItemRow label="방향" value={calculation.direction ?? "-"} />
                 <ItemRow
-                  label="손절 폭"
+                  label={t("results.direction")}
+                  value={
+                    calculation.direction
+                      ? t(
+                          calculation.direction === "Long"
+                            ? "direction.long"
+                            : "direction.short",
+                        )
+                      : "-"
+                  }
+                />
+                <ItemRow
+                  label={t("results.stopDistance")}
                   value={`${formatNumber(calculation.priceDelta)} USD (${formatNumber(calculation.priceDeltaPct)}%)`}
                 />
                 <ItemRow
-                  label="이론상 최대 레버리지"
+                  label={t("results.theoretical")}
                   value={formatLeverage(calculation.theoreticalMaxLeverage)}
-                  tooltip="손절폭만으로 계산한 이론적 값으로, 레버리지 한도를 단순 비교할 때 참고하세요."
+                  tooltip={t("results.theoreticalHint")}
                 />
                 <ItemRow
-                  label="허용 기준 최대 레버리지"
+                  label={t("results.leverage")}
                   value={formatLeverage(calculation.maxLeverage)}
                 />
                 <ItemRow
-                  label="허용 손실"
+                  label={t("results.allowedLoss")}
                   value={
                     calculation.allowedLoss !== undefined
                       ? `${formatNumber(calculation.allowedLoss)} USD`
@@ -595,7 +619,7 @@ export default function Home() {
                 />
                 {exposureMode === "margin" ? (
                   <ItemRow
-                    label="허용 레버리지 기준 포지션"
+                    label={t("results.maxPosition")}
                     value={
                       calculation.maxPositionSize !== undefined
                         ? `${formatNumber(calculation.maxPositionSize)} USD`
@@ -604,7 +628,7 @@ export default function Home() {
                   />
                 ) : (
                   <ItemRow
-                    label="손절 시 예상 손실"
+                    label={t("results.lossAtStop")}
                     value={
                       calculation.lossAtStop !== undefined
                         ? `${formatNumber(calculation.lossAtStop)} USD`
@@ -613,7 +637,7 @@ export default function Home() {
                   />
                 )}
                 <ItemRow
-                  label="증거금 대비 손실 비중"
+                  label={t("results.riskPercent")}
                   value={
                     calculation.riskPercentOfCapital !== undefined
                       ? `${formatNumber(calculation.riskPercentOfCapital, 2)}%`
@@ -622,19 +646,19 @@ export default function Home() {
                 />
                 {calculation.riskRewardRatio !== undefined && (
                   <ItemRow
-                    label="손익비 (R:R)"
+                    label={t("results.rr")}
                     value={formatNumber(calculation.riskRewardRatio, 2)}
                   />
                 )}
                 {calculation.expectedProfit !== undefined && (
                   <ItemRow
-                    label="익절 시 예상 수익"
+                    label={t("results.expectedProfit")}
                     value={`${formatNumber(calculation.expectedProfit)} USD`}
                   />
                 )}
                 {calculation.expectedReturnPct !== undefined && (
                   <ItemRow
-                    label="익절 시 예상 수익률"
+                    label={t("results.expectedReturn")}
                     value={`${formatNumber(calculation.expectedReturnPct, 2)}%`}
                   />
                 )}
@@ -645,7 +669,7 @@ export default function Home() {
                     className="inline-flex w-full items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-sky-500 hover:text-sky-200 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-500"
                     disabled={saveState === "saving"}
                   >
-                    {saveState === "saving" ? "저장 중..." : "거래 기록으로 저장"}
+                    {saveState === "saving" ? t("results.saving") : t("results.save")}
                   </button>
                   {saveMessage ? (
                     <p
@@ -665,11 +689,13 @@ export default function Home() {
             </div>
 
             <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg shadow-black/20">
-              <h2 className="text-lg font-semibold text-slate-100">유효성 & 메모</h2>
+              <h2 className="text-lg font-semibold text-slate-100">
+                {t("results.sectionNotes")}
+              </h2>
               <ul className="mt-3 space-y-2 text-sm text-slate-300">
                 {calculation.warnings.length === 0 ? (
                   <li className="rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-2 text-slate-400">
-                    입력값을 채우면 계산 결과가 즉시 업데이트됩니다. 추후 버전에서는 실시간 시세 연동을 제공합니다.
+                    {t("results.noWarnings")}
                   </li>
                 ) : (
                   calculation.warnings.map((warning, index) => (
@@ -677,7 +703,7 @@ export default function Home() {
                       key={index}
                       className="rounded-lg border border-slate-800 bg-red-500/10 px-3 py-2 text-red-200"
                     >
-                      {warning}
+                      {t(warning)}
                     </li>
                   ))
                 )}
@@ -689,11 +715,9 @@ export default function Home() {
       <footer className="border-t border-slate-800 bg-slate-900/80 px-6 py-4 text-xs text-slate-500">
         <div className="mx-auto flex max-w-5xl flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <p>
-            © {new Date().getFullYear()} lvcheck — 레버리지 리스크 관리 도구
+            {t("footer.rights", { year: new Date().getFullYear() })}
           </p>
-          <p>
-            Vercel 서버리스 환경에 최적화된 Next.js 애플리케이션
-          </p>
+          <p>{t("footer.deployment")}</p>
         </div>
       </footer>
     </div>

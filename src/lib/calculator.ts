@@ -27,7 +27,7 @@ export interface CalculationResult {
   riskRewardRatio?: number;
   expectedProfit?: number;
   expectedReturnPct?: number;
-  warnings: string[];
+  warnings: MessageKey[];
 }
 
 const toRatio = (value: number | undefined, total: number | undefined) => {
@@ -39,7 +39,7 @@ const isFinitePositive = (value: number | undefined) =>
   typeof value === "number" && Number.isFinite(value) && value > 0;
 
 export function calculateMetrics(inputs: CalculationInputs): CalculationResult {
-  const warnings: string[] = [];
+  const warnings: MessageKey[] = [];
   const {
     entryPrice,
     stopPrice,
@@ -56,7 +56,7 @@ export function calculateMetrics(inputs: CalculationInputs): CalculationResult {
   }
 
   if (entryPrice === stopPrice) {
-    warnings.push("손절가와 진입가는 달라야 합니다.");
+    warnings.push("warning.stopEqualsEntry");
     return { ready: false, warnings };
   }
 
@@ -68,7 +68,7 @@ export function calculateMetrics(inputs: CalculationInputs): CalculationResult {
   const priceDeltaPct = (priceDelta / entry) * 100;
 
   if (priceDelta === 0) {
-    warnings.push("손절가가 진입가와 동일합니다.");
+    warnings.push("warning.invalidStop");
     return { ready: false, warnings };
   }
 
@@ -86,7 +86,7 @@ export function calculateMetrics(inputs: CalculationInputs): CalculationResult {
         allowedLoss = (marginCapital! * riskValue!) / 100;
       }
     } else {
-      warnings.push("손실률(% of 증거금)은 증거금 모드에서만 사용 가능합니다.");
+      warnings.push("warning.percentPosition");
     }
   }
 
@@ -111,7 +111,7 @@ export function calculateMetrics(inputs: CalculationInputs): CalculationResult {
       direction === "Long" ? takeProfit - entry : entry - takeProfit;
 
     if (!Number.isFinite(profitDeltaRaw) || profitDeltaRaw <= 0) {
-      warnings.push("익절가는 진입가보다 유리한 방향으로 설정해야 합니다.");
+      warnings.push("warning.takeProfit");
       return;
     }
 
@@ -126,13 +126,13 @@ export function calculateMetrics(inputs: CalculationInputs): CalculationResult {
   if (exposureMode === "margin") {
     if (!isFinitePositive(marginCapital)) {
       if (!warnings.length) {
-        warnings.push("유효한 증거금을 입력하세요.");
+        warnings.push("warning.invalidMargin");
       }
       return result;
     }
 
     if (!isFinitePositive(allowedLoss)) {
-      warnings.push("허용 손실 금액 또는 손실률을 입력하세요.");
+      warnings.push("warning.invalidLoss");
       return result;
     }
 
@@ -152,12 +152,12 @@ export function calculateMetrics(inputs: CalculationInputs): CalculationResult {
   }
 
   if (!isFinitePositive(positionSize)) {
-    warnings.push("유효한 총 포지션 규모를 입력하세요.");
+    warnings.push("warning.invalidPosition");
     return result;
   }
 
   if (!isFinitePositive(allowedLoss)) {
-    warnings.push("허용 손실 금액을 입력하세요.");
+    warnings.push("warning.invalidLoss");
     return result;
   }
 
@@ -165,7 +165,7 @@ export function calculateMetrics(inputs: CalculationInputs): CalculationResult {
   result.lossAtStop = lossAtStop;
 
   if (allowedLoss! < lossAtStop) {
-    warnings.push("현재 포지션과 손절 거리로는 허용 손실 금액을 초과합니다.");
+    warnings.push("warning.positionTooLarge");
   }
 
   const maxPositionSize = (allowedLoss! * entry) / priceDelta;
@@ -183,3 +183,4 @@ export function calculateMetrics(inputs: CalculationInputs): CalculationResult {
 
   return result;
 }
+import type { MessageKey } from "@/i18n/messages";

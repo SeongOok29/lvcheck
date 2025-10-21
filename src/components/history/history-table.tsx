@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useSupabase } from "@/components/providers/supabase-provider";
+import { useTranslations } from "@/i18n/context";
 import { formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import type { TradeEntry } from "@/types/trade";
 
@@ -56,19 +57,6 @@ const makeCsvRow = (row: TableRow) =>
     })
     .join(",");
 
-const outcomeLabel = (value: TradeEntry["exit_outcome"]) => {
-  switch (value) {
-    case "take_profit":
-      return "익절";
-    case "stop_loss":
-      return "손절";
-    case "open":
-      return "진행중";
-    default:
-      return "-";
-  }
-};
-
 export function HistoryTable({ trades }: HistoryTableProps) {
   const [selectedTrade, setSelectedTrade] = useState<TableRow | null>(null);
   const [noteDraft, setNoteDraft] = useState<string>("");
@@ -79,12 +67,26 @@ export function HistoryTable({ trades }: HistoryTableProps) {
   const [mutationMessage, setMutationMessage] = useState<string | null>(null);
 
   const { supabase } = useSupabase();
+  const t = useTranslations();
   const router = useRouter();
 
   const tableRows = useMemo<TableRow[]>(
     () => trades.map((trade, index) => ({ ...trade, index })),
     [trades],
   );
+
+  const outcomeLabel = (value: TradeEntry["exit_outcome"]) => {
+    switch (value) {
+      case "take_profit":
+        return t("outcome.take_profit");
+      case "stop_loss":
+        return t("outcome.stop_loss");
+      case "open":
+        return t("outcome.open");
+      default:
+        return t("outcome.none");
+    }
+  };
 
   useEffect(() => {
     if (selectedTrade) {
@@ -118,7 +120,7 @@ export function HistoryTable({ trades }: HistoryTableProps) {
 
   const handleDelete = async () => {
     if (!selectedTrade || mutationState === "deleting") return;
-    const confirmed = window.confirm("이 거래 기록을 삭제할까요? 되돌릴 수 없습니다.");
+    const confirmed = window.confirm(t("history.table.modal.deleteConfirm"));
     if (!confirmed) return;
 
     setMutationState("deleting");
@@ -126,12 +128,12 @@ export function HistoryTable({ trades }: HistoryTableProps) {
     const { error } = await supabase.from("trade_entries").delete().eq("id", selectedTrade.id);
     if (error) {
       setMutationState("error");
-      setMutationMessage(error.message ?? "삭제에 실패했습니다.");
+      setMutationMessage(error.message ?? t("history.table.modal.deleteError"));
       return;
     }
 
     setMutationState("success");
-    setMutationMessage("삭제했습니다.");
+    setMutationMessage(t("history.table.modal.deleteSuccess"));
     setSelectedTrade(null);
     router.refresh();
   };
@@ -153,12 +155,12 @@ export function HistoryTable({ trades }: HistoryTableProps) {
 
     if (error) {
       setMutationState("error");
-      setMutationMessage(error.message ?? "수정에 실패했습니다.");
+      setMutationMessage(error.message ?? t("history.table.modal.saveError"));
       return;
     }
 
     setMutationState("success");
-    setMutationMessage("수정 내용을 저장했습니다.");
+    setMutationMessage(t("history.table.modal.saveSuccess"));
     setSelectedTrade(null);
     router.refresh();
   };
@@ -166,13 +168,15 @@ export function HistoryTable({ trades }: HistoryTableProps) {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold text-slate-100">거래 목록</h2>
+        <h2 className="text-lg font-semibold text-slate-100">
+          {t("history.table.title")}
+        </h2>
         <button
           type="button"
           onClick={handleExportCsv}
           className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-sky-200"
         >
-          CSV 내보내기
+          {t("history.table.export")}
         </button>
       </div>
 
@@ -180,21 +184,21 @@ export function HistoryTable({ trades }: HistoryTableProps) {
         <table className="min-w-full divide-y divide-slate-800">
           <thead className="bg-slate-900/70 text-xs uppercase tracking-wide text-slate-400">
             <tr>
-              <th className="px-4 py-3 text-left">#</th>
-              <th className="px-4 py-3 text-left">저장일시</th>
-              <th className="px-4 py-3 text-left">시장</th>
-              <th className="px-4 py-3 text-left">방향</th>
-              <th className="px-4 py-3 text-right">진입가</th>
-              <th className="px-4 py-3 text-right">손절가</th>
-              <th className="px-4 py-3 text-right">익절가</th>
-              <th className="px-4 py-3 text-right">최대 레버리지</th>
-              <th className="px-4 py-3 text-right">투자금</th>
-              <th className="px-4 py-3 text-right">손익비</th>
-              <th className="px-4 py-3 text-right">허용 손실</th>
-              <th className="px-4 py-3 text-right">익절 예상 수익</th>
-              <th className="px-4 py-3 text-left">메모</th>
-              <th className="px-4 py-3 text-left">결과</th>
-              <th className="px-4 py-3 text-center">상세</th>
+              <th className="px-4 py-3 text-left">{t("history.table.index")}</th>
+              <th className="px-4 py-3 text-left">{t("history.table.savedAt")}</th>
+              <th className="px-4 py-3 text-left">{t("history.table.market")}</th>
+              <th className="px-4 py-3 text-left">{t("history.table.direction")}</th>
+              <th className="px-4 py-3 text-right">{t("history.table.entry")}</th>
+              <th className="px-4 py-3 text-right">{t("history.table.stop")}</th>
+              <th className="px-4 py-3 text-right">{t("history.table.takeProfit")}</th>
+              <th className="px-4 py-3 text-right">{t("history.table.maxLeverage")}</th>
+              <th className="px-4 py-3 text-right">{t("history.table.investment")}</th>
+              <th className="px-4 py-3 text-right">{t("history.table.rr")}</th>
+              <th className="px-4 py-3 text-right">{t("history.table.allowedLoss")}</th>
+              <th className="px-4 py-3 text-right">{t("history.table.expectedProfit")}</th>
+              <th className="px-4 py-3 text-left">{t("history.table.notes")}</th>
+              <th className="px-4 py-3 text-left">{t("history.table.outcome")}</th>
+              <th className="px-4 py-3 text-center">{t("history.table.details")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800 text-sm">
@@ -211,7 +215,7 @@ export function HistoryTable({ trades }: HistoryTableProps) {
                     {trade.exchange.toUpperCase()} · {trade.symbol}
                   </div>
                   <div className="text-xs text-slate-500">
-                    {trade.exposure_mode === "margin" ? "증거금 기준" : "총 포지션 기준"}
+                    {t(trade.exposure_mode === "margin" ? "mode.margin" : "mode.position")}
                   </div>
                 </td>
                 <td className="px-4 py-3 align-top text-slate-200">
@@ -222,7 +226,7 @@ export function HistoryTable({ trades }: HistoryTableProps) {
                         : "rounded-full bg-rose-500/10 px-2 py-1 text-xs font-semibold text-rose-300"
                     }
                   >
-                    {trade.direction}
+                    {t(trade.direction === "Long" ? "direction.long" : "direction.short")}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-slate-100">
@@ -266,7 +270,7 @@ export function HistoryTable({ trades }: HistoryTableProps) {
                     onClick={() => setSelectedTrade(trade)}
                     className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-sky-200"
                   >
-                    상세
+                    {t("history.table.details")}
                   </button>
                 </td>
               </tr>
@@ -283,80 +287,94 @@ export function HistoryTable({ trades }: HistoryTableProps) {
               onClick={() => setSelectedTrade(null)}
               className="absolute right-4 top-4 rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300 hover:border-slate-500"
             >
-              닫기
+              {t("history.table.modal.close")}
             </button>
             <h3 className="text-lg font-semibold text-slate-50">
-              {selectedTrade.exchange.toUpperCase()} · {selectedTrade.symbol}
+              {t("history.table.modal.summary", {
+                exchange: selectedTrade.exchange.toUpperCase(),
+                symbol: selectedTrade.symbol,
+              })}
             </h3>
             <p className="mt-1 text-xs text-slate-500">
-              {formatDateTime(selectedTrade.created_at)} 저장 · {selectedTrade.direction} ·{" "}
-              {selectedTrade.exposure_mode === "margin" ? "증거금" : "총 포지션"} 기준
+              {t("history.table.modal.saved", {
+                createdAt: formatDateTime(selectedTrade.created_at),
+                direction: t(
+                  selectedTrade.direction === "Long"
+                    ? "direction.long"
+                    : "direction.short",
+                ),
+                mode: t(
+                  selectedTrade.exposure_mode === "margin"
+                    ? "mode.margin"
+                    : "mode.position",
+                ),
+              })}
             </p>
 
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm text-slate-200">
               <div>
-                <h4 className="text-xs text-slate-400">진입가</h4>
+                <h4 className="text-xs text-slate-400">{t("history.table.modal.entry")}</h4>
                 <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.entry_price)} USD
                 </p>
               </div>
               <div>
-                <h4 className="text-xs text-slate-400">손절가</h4>
+                <h4 className="text-xs text-slate-400">{t("history.table.modal.stop")}</h4>
                 <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.stop_price)} USD
                 </p>
               </div>
               <div>
-                <h4 className="text-xs text-slate-400">익절가</h4>
+                <h4 className="text-xs text-slate-400">{t("history.table.modal.takeProfit")}</h4>
                 <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.take_profit)} USD
                 </p>
               </div>
               <div>
-                <h4 className="text-xs text-slate-400">허용 손실</h4>
+                <h4 className="text-xs text-slate-400">{t("history.table.modal.allowedLoss")}</h4>
                 <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.allowed_loss)} USD
                 </p>
               </div>
               <div>
-                <h4 className="text-xs text-slate-400">최대 레버리지</h4>
+                <h4 className="text-xs text-slate-400">{t("history.table.modal.leverage")}</h4>
                 <p className="font-mono text-slate-100">
                   {selectedTrade.max_leverage ? `${selectedTrade.max_leverage.toFixed(2)}x` : "-"}
                 </p>
               </div>
               <div>
-                <h4 className="text-xs text-slate-400">손익비</h4>
+                <h4 className="text-xs text-slate-400">{t("history.table.modal.rr")}</h4>
                 <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.risk_reward_ratio)}
                 </p>
               </div>
               <div>
-                <h4 className="text-xs text-slate-400">익절 예상 수익</h4>
+                <h4 className="text-xs text-slate-400">{t("history.table.modal.expectedProfit")}</h4>
                 <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.expected_profit)} USD
                 </p>
               </div>
               <div>
-                <h4 className="text-xs text-slate-400">익절 예상 수익률</h4>
+                <h4 className="text-xs text-slate-400">{t("history.table.modal.expectedReturn")}</h4>
                 <p className="font-mono text-slate-100">
                   {formatPercent(selectedTrade.expected_return_pct)}
                 </p>
               </div>
               <div>
-                <h4 className="text-xs text-slate-400">투자금</h4>
+                <h4 className="text-xs text-slate-400">{t("history.table.modal.investment")}</h4>
                 <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.margin_capital)} USD
                 </p>
               </div>
               <div>
-                <h4 className="text-xs text-slate-400">총 포지션</h4>
+                <h4 className="text-xs text-slate-400">{t("history.table.modal.position")}</h4>
                 <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.position_size)} USD
                 </p>
               </div>
               <div className="col-span-2 space-y-2">
                 <label className="flex flex-col gap-1">
-                  <span className="text-xs text-slate-400">메모</span>
+                  <span className="text-xs text-slate-400">{t("history.table.modal.memo")}</span>
                   <textarea
                     rows={3}
                     className="w-full resize-none rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
@@ -365,7 +383,7 @@ export function HistoryTable({ trades }: HistoryTableProps) {
                   />
                 </label>
                 <label className="flex flex-col gap-1 text-xs">
-                  <span className="text-slate-400">익절 / 손절 여부</span>
+                  <span className="text-slate-400">{t("history.table.modal.outcome")}</span>
                   <select
                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                     value={outcomeDraft}
@@ -373,10 +391,10 @@ export function HistoryTable({ trades }: HistoryTableProps) {
                       setOutcomeDraft(event.target.value as OutcomeOption)
                     }
                   >
-                    <option value="">미선택</option>
-                    <option value="take_profit">익절</option>
-                    <option value="stop_loss">손절</option>
-                    <option value="open">진행중</option>
+                    <option value="">{t("history.table.modal.outcomeNone")}</option>
+                    <option value="take_profit">{t("history.table.modal.outcomeTp")}</option>
+                    <option value="stop_loss">{t("history.table.modal.outcomeSl")}</option>
+                    <option value="open">{t("history.table.modal.outcomeOpen")}</option>
                   </select>
                 </label>
               </div>
@@ -399,7 +417,9 @@ export function HistoryTable({ trades }: HistoryTableProps) {
                 onClick={handleDelete}
                 disabled={mutationState === "deleting"}
               >
-                {mutationState === "deleting" ? "삭제 중..." : "삭제"}
+                {mutationState === "deleting"
+                  ? t("history.table.modal.deleting")
+                  : t("history.table.modal.delete")}
               </button>
               <button
                 type="button"
@@ -407,7 +427,9 @@ export function HistoryTable({ trades }: HistoryTableProps) {
                 onClick={handleSave}
                 disabled={mutationState === "saving"}
               >
-                {mutationState === "saving" ? "저장 중..." : "저장"}
+                {mutationState === "saving"
+                  ? t("history.table.modal.saving")
+                  : t("history.table.modal.save")}
               </button>
             </div>
           </div>
