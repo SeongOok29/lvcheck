@@ -18,7 +18,7 @@ const ensureEnv = () => {
 
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(
-      "Supabase 환경변수(NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY)가 설정되어야 합니다.",
+      "Supabase environment variables NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set.",
     );
   }
 
@@ -40,6 +40,14 @@ export function SupabaseProvider({
   );
 
   const [session, setSession] = useState<Session | null>(initialSession);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: latestSession } }) => {
+      if (latestSession) {
+        setSession(latestSession);
+      }
+    });
+  }, [supabase]);
 
   useEffect(() => {
     const {
