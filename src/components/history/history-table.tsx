@@ -61,6 +61,11 @@ export function HistoryTable({ trades }: HistoryTableProps) {
   const [selectedTrade, setSelectedTrade] = useState<TableRow | null>(null);
   const [noteDraft, setNoteDraft] = useState<string>("");
   const [outcomeDraft, setOutcomeDraft] = useState<OutcomeOption>("");
+  const [entryDraft, setEntryDraft] = useState<string>("");
+  const [stopDraft, setStopDraft] = useState<string>("");
+  const [takeProfitDraft, setTakeProfitDraft] = useState<string>("");
+  const [marginDraft, setMarginDraft] = useState<string>("");
+  const [positionDraft, setPositionDraft] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
   const [mutationState, setMutationState] = useState<
     "idle" | "saving" | "deleting" | "success" | "error"
@@ -93,6 +98,11 @@ export function HistoryTable({ trades }: HistoryTableProps) {
     if (selectedTrade) {
       setNoteDraft(selectedTrade.notes ?? "");
       setOutcomeDraft(selectedTrade.exit_outcome ?? "");
+      setEntryDraft(selectedTrade.entry_price?.toString() ?? "");
+      setStopDraft(selectedTrade.stop_price?.toString() ?? "");
+      setTakeProfitDraft(selectedTrade.take_profit?.toString() ?? "");
+      setMarginDraft(selectedTrade.margin_capital?.toString() ?? "");
+      setPositionDraft(selectedTrade.position_size?.toString() ?? "");
       setIsEditing(false);
       setMutationState("idle");
       setMutationMessage(null);
@@ -148,6 +158,11 @@ export function HistoryTable({ trades }: HistoryTableProps) {
     const payload = {
       notes: noteDraft.trim() ? noteDraft.trim() : null,
       exit_outcome: outcomeDraft || null,
+      entry_price: entryDraft ? Number(entryDraft) : null,
+      stop_price: stopDraft ? Number(stopDraft) : null,
+      take_profit: takeProfitDraft ? Number(takeProfitDraft) : null,
+      margin_capital: marginDraft ? Number(marginDraft) : null,
+      position_size: positionDraft ? Number(positionDraft) : null,
     };
 
     const { error } = await supabase
@@ -296,7 +311,7 @@ export function HistoryTable({ trades }: HistoryTableProps) {
               onClick={() => setIsEditing((prev) => !prev)}
               className="absolute right-20 top-4 rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300 hover:border-slate-500"
             >
-              {isEditing ? t("history.table.modal.close") : t("history.table.modal.edit")}
+              {isEditing ? t("history.table.modal.editCancel") : t("history.table.modal.edit")}
             </button>
             <h3 className="text-lg font-semibold text-slate-50">
               {t("history.table.modal.summary", {
@@ -322,22 +337,43 @@ export function HistoryTable({ trades }: HistoryTableProps) {
 
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm text-slate-200">
               <div>
-                <h4 className="text-xs text-slate-400">{t("history.table.modal.entry")}</h4>
-                <p className="font-mono text-slate-100">
-                  {formatNumber(selectedTrade.entry_price)} USD
-                </p>
+                <label className="flex flex-col gap-1 text-xs text-slate-400">
+                  <span>{t("history.table.modal.entry")}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                    value={entryDraft}
+                    onChange={(event) => setEntryDraft(event.target.value)}
+                    disabled={!isEditing}
+                  />
+                </label>
               </div>
               <div>
-                <h4 className="text-xs text-slate-400">{t("history.table.modal.stop")}</h4>
-                <p className="font-mono text-slate-100">
-                  {formatNumber(selectedTrade.stop_price)} USD
-                </p>
+                <label className="flex flex-col gap-1 text-xs text-slate-400">
+                  <span>{t("history.table.modal.stop")}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                    value={stopDraft}
+                    onChange={(event) => setStopDraft(event.target.value)}
+                    disabled={!isEditing}
+                  />
+                </label>
               </div>
               <div>
-                <h4 className="text-xs text-slate-400">{t("history.table.modal.takeProfit")}</h4>
-                <p className="font-mono text-slate-100">
-                  {formatNumber(selectedTrade.take_profit)} USD
-                </p>
+                <label className="flex flex-col gap-1 text-xs text-slate-400">
+                  <span>{t("history.table.modal.takeProfit")}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                    value={takeProfitDraft}
+                    onChange={(event) => setTakeProfitDraft(event.target.value)}
+                    disabled={!isEditing}
+                  />
+                </label>
               </div>
               <div>
                 <h4 className="text-xs text-slate-400">{t("history.table.modal.allowedLoss")}</h4>
@@ -370,16 +406,30 @@ export function HistoryTable({ trades }: HistoryTableProps) {
                 </p>
               </div>
               <div>
-                <h4 className="text-xs text-slate-400">{t("history.table.modal.investment")}</h4>
-                <p className="font-mono text-slate-100">
-                  {formatNumber(selectedTrade.margin_capital)} USD
-                </p>
+                <label className="flex flex-col gap-1 text-xs text-slate-400">
+                  <span>{t("history.table.modal.investment")}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                    value={marginDraft}
+                    onChange={(event) => setMarginDraft(event.target.value)}
+                    disabled={!isEditing}
+                  />
+                </label>
               </div>
               <div>
-                <h4 className="text-xs text-slate-400">{t("history.table.modal.position")}</h4>
-                <p className="font-mono text-slate-100">
-                  {formatNumber(selectedTrade.position_size)} USD
-                </p>
+                <label className="flex flex-col gap-1 text-xs text-slate-400">
+                  <span>{t("history.table.modal.position")}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                    value={positionDraft}
+                    onChange={(event) => setPositionDraft(event.target.value)}
+                    disabled={!isEditing}
+                  />
+                </label>
               </div>
               <div className="col-span-2 space-y-2">
                 <label className="flex flex-col gap-1">
