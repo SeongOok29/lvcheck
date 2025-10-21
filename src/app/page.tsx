@@ -382,7 +382,7 @@ export default function Home() {
               <h2 className="text-lg font-semibold text-slate-100">
                 {t("inputs.priceSection")}
               </h2>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
                 <label className="flex flex-col gap-1 text-sm">
                   <span className="text-slate-300">{t("inputs.entry")}</span>
                   <input
@@ -392,30 +392,6 @@ export default function Home() {
                     value={entryInput}
                     onChange={(event) => setEntryInput(event.target.value)}
                     placeholder="63250"
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-slate-300">{t("inputs.stop")}</span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-                    value={stopInput}
-                    onChange={(event) => setStopInput(event.target.value)}
-                    placeholder="61800"
-                  />
-                </label>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-slate-300">{t("inputs.takeProfit")}</span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
-                    value={takeProfitInput}
-                    onChange={(event) => setTakeProfitInput(event.target.value)}
-                    placeholder="67200"
                   />
                 </label>
                 <button
@@ -463,6 +439,30 @@ export default function Home() {
               {priceMessage ? (
                 <p className="text-xs text-slate-400">{priceMessage}</p>
               ) : null}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-slate-300">{t("inputs.stop")}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                    value={stopInput}
+                    onChange={(event) => setStopInput(event.target.value)}
+                    placeholder="61800"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-slate-300">{t("inputs.takeProfit")}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                    value={takeProfitInput}
+                    onChange={(event) => setTakeProfitInput(event.target.value)}
+                    placeholder="67200"
+                  />
+                </label>
+              </div>
             </div>
 
             <div className="space-y-3">
