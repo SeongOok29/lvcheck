@@ -3,6 +3,7 @@
 ## Project Structure & Module Organization
 - The Next.js App Router lives in `src/app/`; keep top-level routes minimal and compose UI from smaller client components.
 - `src/app/history/page.tsx` renders the saved-trade archive; keep data loading on the server and reuse Supabase helpers.
+- Client-side history UI helpers (detail drawer, CSV export) sit under `src/components/history/`.
 - Shared logic (math helpers, providers, hooks) belongs in `src/lib/` or `src/components/`; prefer colocating domain-specific helpers near their feature.
 - `public/` serves static assets, while `supabase/` contains SQL migrations/policies. Document deployment quirks in `README.md` rather than ad-hoc notes.
 

@@ -9,6 +9,7 @@ lvcheck is a serverless Next.js web application that estimates the maximum lever
 - Optional take-profit metrics (R:R, projected PnL, return %) that mirror the selected exposure mode.
 - One-click Binance price fetch for quick entry prefill (Bybit/OKX stubs included for future wiring).
 - Authenticated traders can revisit saved calculations on `/history` with exchange, leverage, and PnL metrics summarised.
+- History archive supports filtering (symbol, exchange, direction, date range), pagination, CSV export, and per-trade detail overlays.
 
 ## Quick Start
 ```bash
