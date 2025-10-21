@@ -238,6 +238,7 @@ export default function Home() {
       risk_reward_ratio: calculation.riskRewardRatio ?? null,
       expected_profit: calculation.expectedProfit ?? null,
       expected_return_pct: calculation.expectedReturnPct ?? null,
+      exit_outcome: null,
       notes: noteInput.trim() ? noteInput.trim() : null,
     };
 

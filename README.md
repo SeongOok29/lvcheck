@@ -21,7 +21,7 @@ Visit `http://localhost:3000` and fill in the form. Results update in real time;
 ## Supabase Integration
 1. [Create a Supabase project](https://supabase.com/dashboard) and enable Email OTP authentication.
 2. Copy the project URL and anon key into `.env.local` (see `.env.example`). Restart `npm run dev` so the client picks them up.
-3. Run `supabase/schema.sql` in the Supabase SQL editor (or through migrations) to create the `trade_entries` table and RLS policies.
+3. Run `supabase/schema.sql` in the Supabase SQL editor (or through migrations) to create the `trade_entries` table and RLS policies. If 기존 테이블이 있다면 `alter table trade_entries add column exit_outcome text check (exit_outcome in ('take_profit','stop_loss','open'));` 등을 먼저 적용하세요.
 4. Add `https://<your-domain>/auth/callback` to **Authentication ▸ URL Configuration ▸ Redirect URLs** so magic links land back in the app.
 
 When authenticated, traders can save the latest calculation to Supabase (`trade_entries` captures raw inputs, derived leverage metrics, and optional notes). Row-Level Security keeps records siloed per user.

@@ -24,5 +24,6 @@ export interface TradeEntry {
   risk_reward_ratio: number | null;
   expected_profit: number | null;
   expected_return_pct: number | null;
+  exit_outcome: "take_profit" | "stop_loss" | "open" | null;
   notes: string | null;
 }

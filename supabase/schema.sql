@@ -24,6 +24,7 @@ create table if not exists trade_entries (
   risk_reward_ratio numeric,
   expected_profit numeric,
   expected_return_pct numeric,
+  exit_outcome text check (exit_outcome in ('take_profit', 'stop_loss', 'open')),
   notes text
 );
 

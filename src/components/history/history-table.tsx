@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
+import { useSupabase } from "@/components/providers/supabase-provider";
 import { formatDateTime, formatNumber, formatPercent } from "@/lib/format";
 import type { TradeEntry } from "@/types/trade";
 
@@ -10,6 +12,8 @@ interface HistoryTableProps {
 }
 
 type TableRow = TradeEntry & { index: number };
+
+type OutcomeOption = "take_profit" | "stop_loss" | "open" | "";
 
 const csvHeaders: Array<keyof TradeEntry | "index"> = [
   "index",
@@ -36,6 +40,7 @@ const csvHeaders: Array<keyof TradeEntry | "index"> = [
   "risk_reward_ratio",
   "expected_profit",
   "expected_return_pct",
+  "exit_outcome",
   "notes",
 ];
 
@@ -51,13 +56,44 @@ const makeCsvRow = (row: TableRow) =>
     })
     .join(",");
 
+const outcomeLabel = (value: TradeEntry["exit_outcome"]) => {
+  switch (value) {
+    case "take_profit":
+      return "익절";
+    case "stop_loss":
+      return "손절";
+    case "open":
+      return "진행중";
+    default:
+      return "-";
+  }
+};
+
 export function HistoryTable({ trades }: HistoryTableProps) {
   const [selectedTrade, setSelectedTrade] = useState<TableRow | null>(null);
+  const [noteDraft, setNoteDraft] = useState<string>("");
+  const [outcomeDraft, setOutcomeDraft] = useState<OutcomeOption>("");
+  const [mutationState, setMutationState] = useState<
+    "idle" | "saving" | "deleting" | "success" | "error"
+  >( "idle");
+  const [mutationMessage, setMutationMessage] = useState<string | null>(null);
+
+  const { supabase } = useSupabase();
+  const router = useRouter();
 
   const tableRows = useMemo<TableRow[]>(
     () => trades.map((trade, index) => ({ ...trade, index })),
     [trades],
   );
+
+  useEffect(() => {
+    if (selectedTrade) {
+      setNoteDraft(selectedTrade.notes ?? "");
+      setOutcomeDraft(selectedTrade.exit_outcome ?? "");
+      setMutationState("idle");
+      setMutationMessage(null);
+    }
+  }, [selectedTrade]);
 
   const csvContent = useMemo(() => {
     if (!tableRows.length) return "";
@@ -78,6 +114,53 @@ export function HistoryTable({ trades }: HistoryTableProps) {
     anchor.click();
     document.body.removeChild(anchor);
     URL.revokeObjectURL(url);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedTrade || mutationState === "deleting") return;
+    const confirmed = window.confirm("이 거래 기록을 삭제할까요? 되돌릴 수 없습니다.");
+    if (!confirmed) return;
+
+    setMutationState("deleting");
+    setMutationMessage(null);
+    const { error } = await supabase.from("trade_entries").delete().eq("id", selectedTrade.id);
+    if (error) {
+      setMutationState("error");
+      setMutationMessage(error.message ?? "삭제에 실패했습니다.");
+      return;
+    }
+
+    setMutationState("success");
+    setMutationMessage("삭제했습니다.");
+    setSelectedTrade(null);
+    router.refresh();
+  };
+
+  const handleSave = async () => {
+    if (!selectedTrade || mutationState === "saving") return;
+    setMutationState("saving");
+    setMutationMessage(null);
+
+    const payload = {
+      notes: noteDraft.trim() ? noteDraft.trim() : null,
+      exit_outcome: outcomeDraft || null,
+    };
+
+    const { error } = await supabase
+      .from("trade_entries")
+      .update(payload)
+      .eq("id", selectedTrade.id);
+
+    if (error) {
+      setMutationState("error");
+      setMutationMessage(error.message ?? "수정에 실패했습니다.");
+      return;
+    }
+
+    setMutationState("success");
+    setMutationMessage("수정 내용을 저장했습니다.");
+    setSelectedTrade(null);
+    router.refresh();
   };
 
   return (
@@ -105,10 +188,12 @@ export function HistoryTable({ trades }: HistoryTableProps) {
               <th className="px-4 py-3 text-right">손절가</th>
               <th className="px-4 py-3 text-right">익절가</th>
               <th className="px-4 py-3 text-right">최대 레버리지</th>
+              <th className="px-4 py-3 text-right">투자금</th>
               <th className="px-4 py-3 text-right">손익비</th>
               <th className="px-4 py-3 text-right">허용 손실</th>
               <th className="px-4 py-3 text-right">익절 예상 수익</th>
               <th className="px-4 py-3 text-left">메모</th>
+              <th className="px-4 py-3 text-left">결과</th>
               <th className="px-4 py-3 text-center">상세</th>
             </tr>
           </thead>
@@ -153,6 +238,9 @@ export function HistoryTable({ trades }: HistoryTableProps) {
                   {trade.max_leverage ? `${trade.max_leverage.toFixed(2)}x` : "-"}
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-slate-300">
+                  {formatNumber(trade.margin_capital)}
+                </td>
+                <td className="px-4 py-3 text-right font-mono text-slate-300">
                   {formatNumber(trade.risk_reward_ratio)}
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-slate-300">
@@ -168,6 +256,9 @@ export function HistoryTable({ trades }: HistoryTableProps) {
                 </td>
                 <td className="max-w-xs px-4 py-3 align-top text-slate-300">
                   {trade.notes ?? "-"}
+                </td>
+                <td className="px-4 py-3 align-top text-slate-300">
+                  {outcomeLabel(trade.exit_outcome)}
                 </td>
                 <td className="px-4 py-3 text-center">
                   <button
@@ -198,80 +289,127 @@ export function HistoryTable({ trades }: HistoryTableProps) {
               {selectedTrade.exchange.toUpperCase()} · {selectedTrade.symbol}
             </h3>
             <p className="mt-1 text-xs text-slate-500">
-              {formatDateTime(selectedTrade.created_at)} 저장 · {selectedTrade.direction} ·{
-                " "
-              }
+              {formatDateTime(selectedTrade.created_at)} 저장 · {selectedTrade.direction} ·{" "}
               {selectedTrade.exposure_mode === "margin" ? "증거금" : "총 포지션"} 기준
             </p>
 
-            <dl className="mt-4 grid grid-cols-2 gap-4 text-sm text-slate-200">
+            <div className="mt-4 grid grid-cols-2 gap-4 text-sm text-slate-200">
               <div>
-                <dt className="text-xs text-slate-400">진입가</dt>
-                <dd className="font-mono text-slate-100">
+                <h4 className="text-xs text-slate-400">진입가</h4>
+                <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.entry_price)} USD
-                </dd>
+                </p>
               </div>
               <div>
-                <dt className="text-xs text-slate-400">손절가</dt>
-                <dd className="font-mono text-slate-100">
+                <h4 className="text-xs text-slate-400">손절가</h4>
+                <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.stop_price)} USD
-                </dd>
+                </p>
               </div>
               <div>
-                <dt className="text-xs text-slate-400">익절가</dt>
-                <dd className="font-mono text-slate-100">
+                <h4 className="text-xs text-slate-400">익절가</h4>
+                <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.take_profit)} USD
-                </dd>
+                </p>
               </div>
               <div>
-                <dt className="text-xs text-slate-400">허용 손실</dt>
-                <dd className="font-mono text-slate-100">
+                <h4 className="text-xs text-slate-400">허용 손실</h4>
+                <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.allowed_loss)} USD
-                </dd>
+                </p>
               </div>
               <div>
-                <dt className="text-xs text-slate-400">최대 레버리지</dt>
-                <dd className="font-mono text-slate-100">
+                <h4 className="text-xs text-slate-400">최대 레버리지</h4>
+                <p className="font-mono text-slate-100">
                   {selectedTrade.max_leverage ? `${selectedTrade.max_leverage.toFixed(2)}x` : "-"}
-                </dd>
+                </p>
               </div>
               <div>
-                <dt className="text-xs text-slate-400">손익비</dt>
-                <dd className="font-mono text-slate-100">
+                <h4 className="text-xs text-slate-400">손익비</h4>
+                <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.risk_reward_ratio)}
-                </dd>
+                </p>
               </div>
               <div>
-                <dt className="text-xs text-slate-400">익절 예상 수익</dt>
-                <dd className="font-mono text-slate-100">
+                <h4 className="text-xs text-slate-400">익절 예상 수익</h4>
+                <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.expected_profit)} USD
-                </dd>
+                </p>
               </div>
               <div>
-                <dt className="text-xs text-slate-400">익절 예상 수익률</dt>
-                <dd className="font-mono text-slate-100">
+                <h4 className="text-xs text-slate-400">익절 예상 수익률</h4>
+                <p className="font-mono text-slate-100">
                   {formatPercent(selectedTrade.expected_return_pct)}
-                </dd>
+                </p>
               </div>
               <div>
-                <dt className="text-xs text-slate-400">증거금</dt>
-                <dd className="font-mono text-slate-100">
+                <h4 className="text-xs text-slate-400">투자금</h4>
+                <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.margin_capital)} USD
-                </dd>
+                </p>
               </div>
               <div>
-                <dt className="text-xs text-slate-400">총 포지션</dt>
-                <dd className="font-mono text-slate-100">
+                <h4 className="text-xs text-slate-400">총 포지션</h4>
+                <p className="font-mono text-slate-100">
                   {formatNumber(selectedTrade.position_size)} USD
-                </dd>
+                </p>
               </div>
-              <div className="col-span-2">
-                <dt className="text-xs text-slate-400">메모</dt>
-                <dd className="mt-1 whitespace-pre-wrap rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-slate-200">
-                  {selectedTrade.notes ?? "-"}
-                </dd>
+              <div className="col-span-2 space-y-2">
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-slate-400">메모</span>
+                  <textarea
+                    rows={3}
+                    className="w-full resize-none rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                    value={noteDraft}
+                    onChange={(event) => setNoteDraft(event.target.value)}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs">
+                  <span className="text-slate-400">익절 / 손절 여부</span>
+                  <select
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+                    value={outcomeDraft}
+                    onChange={(event) =>
+                      setOutcomeDraft(event.target.value as OutcomeOption)
+                    }
+                  >
+                    <option value="">미선택</option>
+                    <option value="take_profit">익절</option>
+                    <option value="stop_loss">손절</option>
+                    <option value="open">진행중</option>
+                  </select>
+                </label>
               </div>
-            </dl>
+            </div>
+
+            {mutationMessage ? (
+              <p
+                className={`mt-3 text-xs ${
+                  mutationState === "error" ? "text-rose-400" : "text-sky-400"
+                }`}
+              >
+                {mutationMessage}
+              </p>
+            ) : null}
+
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="rounded-lg border border-rose-600 bg-rose-600/10 px-4 py-2 text-sm font-semibold text-rose-300 transition hover:bg-rose-600/20 disabled:cursor-not-allowed"
+                onClick={handleDelete}
+                disabled={mutationState === "deleting"}
+              >
+                {mutationState === "deleting" ? "삭제 중..." : "삭제"}
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-sky-500 bg-sky-500/20 px-4 py-2 text-sm font-semibold text-sky-200 transition hover:bg-sky-500/30 disabled:cursor-not-allowed"
+                onClick={handleSave}
+                disabled={mutationState === "saving"}
+              >
+                {mutationState === "saving" ? "저장 중..." : "저장"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
