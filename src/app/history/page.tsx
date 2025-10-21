@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { HistoryTable } from "@/components/history/history-table";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { TradeEntry } from "@/types/trade";
 
@@ -87,6 +87,50 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const hasTrades = trades.length > 0;
 
+  const summaryQuery = supabase
+    .from("trade_entries")
+    .select(
+      `count:count(*),
+       sum_expected_profit:sum(expected_profit),
+       sum_allowed_loss:sum(allowed_loss),
+       sum_margin:sum(margin_capital),
+       sum_position:sum(max_position_size),
+       win_count:sum(exit_outcome = 'take_profit'),
+       loss_count:sum(exit_outcome = 'stop_loss')`
+    )
+    .eq("user_id", session.user.id);
+
+  if (symbolFilter) summaryQuery.ilike("symbol", `%${symbolFilter}%`);
+  if (exchangeFilter) summaryQuery.ilike("exchange", `%${exchangeFilter}%`);
+  if (directionFilter && (directionFilter === "Long" || directionFilter === "Short")) {
+    summaryQuery.eq("direction", directionFilter);
+  }
+  if (fromDateFilter) {
+    const fromDate = new Date(fromDateFilter);
+    if (!Number.isNaN(fromDate.getTime())) {
+      summaryQuery.gte("created_at", fromDate.toISOString());
+    }
+  }
+  if (toDateFilter) {
+    const toDate = new Date(toDateFilter);
+    if (!Number.isNaN(toDate.getTime())) {
+      toDate.setHours(23, 59, 59, 999);
+      summaryQuery.lte("created_at", toDate.toISOString());
+    }
+  }
+
+  const { data: summaryDataRaw } = await summaryQuery.single();
+
+  const summaryData = (summaryDataRaw ?? {}) as Record<string, unknown>;
+
+  const totalTrades = Number(summaryData.count ?? 0);
+  const sumExpectedProfit = Number(summaryData.sum_expected_profit ?? 0);
+  const sumAllowedLoss = Number(summaryData.sum_allowed_loss ?? 0);
+  const sumMargin = Number(summaryData.sum_margin ?? 0);
+  const sumPosition = Number(summaryData.sum_position ?? 0);
+  const winCount = Number(summaryData.win_count ?? 0);
+  const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
+
   const baseParams = new URLSearchParams();
   if (symbolFilter) baseParams.set("symbol", symbolFilter);
   if (exchangeFilter) baseParams.set("exchange", exchangeFilter);
@@ -128,6 +172,55 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
       </header>
 
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-6 py-8">
+        <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 text-sm text-slate-200 shadow-lg shadow-black/20 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">총 거래</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-100">
+              {totalTrades.toLocaleString()}
+            </p>
+            <p className="text-xs text-slate-500">필터 조건에 해당하는 거래 수</p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">승률</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-100">
+              {winRate.toFixed(1)}%
+            </p>
+            <p className="text-xs text-slate-500">
+              {winCount.toLocaleString()}승 / {(totalTrades - winCount).toLocaleString()}패
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">누적 예상 수익</p>
+            <p className="mt-2 text-2xl font-semibold text-emerald-300">
+              {formatNumber(sumExpectedProfit)} USD
+            </p>
+            <p className="text-xs text-slate-500">익절 표적 기준 총합</p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">누적 허용 손실</p>
+            <p className="mt-2 text-2xl font-semibold text-rose-300">
+              {formatNumber(sumAllowedLoss)} USD
+            </p>
+            <p className="text-xs text-slate-500">리스크 한도 총합</p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 sm:col-span-2 lg:col-span-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">총 투자금</p>
+                <p className="mt-1 text-lg font-semibold text-slate-100">
+                  {formatNumber(sumMargin)} USD
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">총 포지션 규모</p>
+                <p className="mt-1 text-lg font-semibold text-slate-100">
+                  {formatNumber(sumPosition)} USD
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-lg shadow-black/20">
           <form className="grid gap-3 sm:grid-cols-[repeat(5,minmax(0,1fr))_auto]" method="get">
             <label className="flex flex-col gap-1 text-xs font-medium text-slate-300">
